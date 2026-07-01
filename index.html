@@ -168,6 +168,12 @@ async function saveState(){
   try{localStorage.setItem(KEY,JSON.stringify(state));}catch(e){}
 }
 function clamp(v){return Math.max(3,Math.min(97,v));}
+// ラベルの左右。中央付近にデッドゾーンを設けて（58〜66%）小さな移動では反転しない。
+function labelSide(it){
+  let s=it.side||(it.x>62?'l':'r');
+  if(it.x>66)s='l';else if(it.x<58)s='r';
+  return s;
+}
 
 function render(){
   plot.querySelectorAll('.dot').forEach(d=>d.remove());
@@ -180,7 +186,7 @@ function render(){
     dot.style.background=c.color;
     dot.style.color=c.color;
     const lb=document.createElement('span');
-    lb.className='lb '+(it.x>62?'l':'r');
+    lb.className='lb '+(it.side||(it.x>62?'l':'r'));
     lb.textContent=it.name;
     dot.appendChild(lb);
     attachDrag(dot,it);
@@ -204,13 +210,17 @@ function attachDrag(dot,it){
     it.x=clamp((e.clientX-r.left)/r.width*100);
     it.y=clamp((e.clientY-r.top)/r.height*100);
     dot.style.left=it.x+'%';dot.style.top=it.y+'%';
-    const lb=dot.querySelector('.lb');
-    lb.className='lb '+(it.x>62?'l':'r');
+    // ドラッグ中はラベルの左右を切り替えない（パタパタ防止）
   });
   dot.addEventListener('pointerup',e=>{
     dot.style.cursor='grab';
     try{dot.releasePointerCapture(e.pointerId);}catch(_){}
-    if(moved){saveState();}
+    if(moved){
+      it.side=labelSide(it);
+      const lb=dot.querySelector('.lb');
+      if(lb)lb.className='lb '+it.side;
+      saveState();
+    }
     else{selectedId=(selectedId===it.id?null:it.id);render();}
   });
 }

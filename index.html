@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>業務棚卸しマトリックス</title>
+<style>
+  :root{
+    --bg:#faf9f6; --card:#ffffff; --text:#2c2c2a; --sub:#6b6a66; --hint:#9c9a92;
+    --border:#e7e5dd; --axis:#b4b2a9;
+    --work:#888780; --judge:#BA7517; --carve:#1D9E75;
+    --teal-zone:rgba(29,158,117,0.09); --amber-zone:rgba(186,117,23,0.08);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{background:var(--bg);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic",sans-serif}
+  .app{max-width:560px;margin:0 auto;padding:16px 16px 40px}
+  h1{font-size:18px;font-weight:600;margin-bottom:4px}
+  .desc{font-size:12.5px;color:var(--sub);line-height:1.6;margin-bottom:14px}
+  .plot-wrap{padding:0 6px}
+  .plot{position:relative;width:100%;aspect-ratio:1/1;background:var(--card);
+    border:1px solid var(--border);border-radius:12px;touch-action:none;overflow:visible}
+  .q-tl{position:absolute;left:0;top:0;width:50%;height:50%;background:var(--teal-zone);border-radius:12px 0 0 0}
+  .q-br{position:absolute;right:0;bottom:0;width:50%;height:50%;background:var(--amber-zone);border-radius:0 0 12px 0}
+  .axis-v{position:absolute;left:50%;top:6px;bottom:6px;width:1px;background:var(--axis);transform:translateX(-.5px)}
+  .axis-h{position:absolute;top:50%;left:6px;right:6px;height:1px;background:var(--axis);transform:translateY(-.5px)}
+  .tri{position:absolute;width:0;height:0}
+  .tri-up{top:1px;left:50%;transform:translateX(-50%);border-left:4px solid transparent;border-right:4px solid transparent;border-bottom:6px solid var(--axis)}
+  .tri-right{right:1px;top:50%;transform:translateY(-50%);border-top:4px solid transparent;border-bottom:4px solid transparent;border-left:6px solid var(--axis)}
+  .lab{position:absolute;font-size:11.5px;color:var(--sub);font-weight:500;pointer-events:none}
+  .lab-top{top:8px;left:50%;transform:translateX(-50%)}
+  .lab-bottom{bottom:8px;left:50%;transform:translateX(-50%);color:var(--hint)}
+  .lab-right{top:calc(50% - 20px);right:10px}
+  .lab-left{top:calc(50% - 20px);left:10px;color:var(--hint)}
+  .zone{position:absolute;left:12px;top:10px;font-size:11.5px;line-height:1.45;color:#0f6e56;font-weight:500;pointer-events:none}
+  .zone small{display:block;font-weight:400;font-size:11px}
+  .dot{position:absolute;width:15px;height:15px;border-radius:50%;transform:translate(-50%,-50%);
+    cursor:grab;touch-action:none;border:2px solid var(--card);box-shadow:0 0 0 1px rgba(0,0,0,.08)}
+  .dot.sel{box-shadow:0 0 0 2px var(--card),0 0 0 4px currentColor}
+  .dot .lb{position:absolute;top:50%;transform:translateY(-50%);white-space:nowrap;
+    font-size:11.5px;color:var(--text);font-weight:400}
+  .dot .lb.r{left:20px}
+  .dot .lb.l{right:20px;text-align:right}
+  .dot.sel .lb{font-weight:600}
+  .panel{margin-top:16px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px}
+  .panel h2{font-size:13px;font-weight:600;margin-bottom:10px;color:var(--text)}
+  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  input[type=text]{flex:1;min-width:140px;font-size:14px;padding:9px 11px;border:1px solid var(--border);
+    border-radius:8px;background:var(--bg);color:var(--text);font-family:inherit}
+  input[type=text]:focus{outline:none;border-color:var(--axis)}
+  .btn{font-size:13px;font-weight:500;padding:9px 14px;border:1px solid var(--border);border-radius:8px;
+    background:var(--card);color:var(--text);cursor:pointer;font-family:inherit}
+  .btn:active{background:var(--bg)}
+  .btn-primary{background:#3b6d56;color:#fff;border-color:#3b6d56}
+  .cat-btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+  .cat{display:flex;align-items:center;gap:6px;font-size:12.5px;padding:7px 11px;border:1.5px solid var(--border);
+    border-radius:20px;cursor:pointer;background:var(--card);color:var(--sub);font-weight:500}
+  .cat .sw{width:11px;height:11px;border-radius:50%}
+  .cat.on{border-color:currentColor;color:var(--text)}
+  .editor{display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)}
+  .editor.show{display:block}
+  .editor .ttl{font-size:12px;color:var(--sub);margin-bottom:8px}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:14px;font-size:12px;color:var(--sub);align-items:center}
+  .legend .it{display:flex;align-items:center;gap:6px}
+  .legend .sw{width:12px;height:12px;border-radius:50%}
+  .muted{font-size:11.5px;color:var(--hint);margin-top:10px;line-height:1.5}
+  .danger{color:#a32d2d;border-color:#e7c6c6}
+</style>
+</head>
+<body>
+<div class="app">
+  <h1>業務棚卸しマトリックス</h1>
+  <p class="desc">点をドラッグして配置します。タップで選ぶと名前・色（性質）を変えたり削除できます。下の欄から業務を追加できます。縦が拘束時間（手が空かない度）、横が属人性（自分でないとできない度）。左上ほど「切り出し候補」です。</p>
+
+  <div class="plot-wrap">
+    <div class="plot" id="plot">
+      <div class="q-tl"></div>
+      <div class="q-br"></div>
+      <div class="axis-v"><span class="tri tri-up"></span></div>
+      <div class="axis-h"><span class="tri tri-right"></span></div>
+      <div class="lab lab-top">拘束時間（大）</div>
+      <div class="lab lab-bottom">（小）</div>
+      <div class="lab lab-right">属人性（高）</div>
+      <div class="lab lab-left">（低）</div>
+      <div class="zone">切り出し候補<small>拘束 大 × 属人性 低</small></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>業務を追加</h2>
+    <div class="row">
+      <input type="text" id="newName" placeholder="例：レーザー彫刻の調整" maxlength="24">
+      <button class="btn btn-primary" id="addBtn">追加</button>
+    </div>
+    <div class="cat-btns" id="newCats"></div>
+
+    <div class="editor" id="editor">
+      <div class="ttl">選択中の業務</div>
+      <div class="row">
+        <input type="text" id="editName" maxlength="24">
+        <button class="btn danger" id="delBtn">削除</button>
+      </div>
+      <div class="cat-btns" id="editCats"></div>
+    </div>
+
+    <div class="legend" id="legend"></div>
+    <div class="muted">追加・移動・色の変更は自動で保存されます。下のボタンで、最初に設計した11業務の配置・色にいつでも戻せます。</div>
+    <div class="row" style="margin-top:10px" id="resetRow">
+      <button class="btn" id="resetBtn">元のマトリクスに戻す</button>
+    </div>
+    <div class="row" id="resetConfirm" style="display:none;margin-top:10px">
+      <span style="font-size:12.5px;color:var(--sub)">追加・変更した内容は消えます。戻しますか？</span>
+      <button class="btn danger" id="resetYes">戻す</button>
+      <button class="btn" id="resetNo">やめる</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const KEY='kojocho-matrix-state-v1';
+const CATS={
+  work:{label:'実作業・対応',color:'#888780'},
+  judge:{label:'判断',color:'#BA7517'},
+  carve:{label:'切り出してもいい',color:'#1D9E75'}
+};
+const DEFAULTS=[
+  {id:1,name:'DTF出力',x:16,y:14,cat:'work'},
+  {id:2,name:'外部対応・電話(A)',x:41,y:23,cat:'work'},
+  {id:3,name:'現場指示(F)',x:50,y:30,cat:'work'},
+  {id:4,name:'入荷・出荷の実務',x:18,y:56,cat:'work'},
+  {id:5,name:'設備保守(G)',x:39,y:76,cat:'work'},
+  {id:6,name:'DTFデータ作成',x:59,y:45,cat:'work'},
+  {id:7,name:'レーザーカット',x:70,y:48,cat:'work'},
+  {id:8,name:'シルク印刷',x:87,y:33,cat:'work'},
+  {id:9,name:'生産計画(D)',x:76,y:28,cat:'judge'},
+  {id:10,name:'加工可否(C)',x:79,y:58,cat:'judge'},
+  {id:11,name:'見積もり(B)',x:81,y:71,cat:'judge'}
+];
+
+let state={items:[],nextId:12};
+let selectedId=null;
+let newCat='work';
+
+const plot=document.getElementById('plot');
+const editor=document.getElementById('editor');
+
+async function loadState(){
+  try{const s=localStorage.getItem(KEY);return s?JSON.parse(s):null;}
+  catch(e){return null;}
+}
+async function saveState(){
+  try{localStorage.setItem(KEY,JSON.stringify(state));}catch(e){}
+}
+function clamp(v){return Math.max(3,Math.min(97,v));}
+
+function render(){
+  plot.querySelectorAll('.dot').forEach(d=>d.remove());
+  state.items.forEach(it=>{
+    const c=CATS[it.cat]||CATS.work;
+    const dot=document.createElement('div');
+    dot.className='dot'+(it.id===selectedId?' sel':'');
+    dot.style.left=it.x+'%';
+    dot.style.top=it.y+'%';
+    dot.style.background=c.color;
+    dot.style.color=c.color;
+    const lb=document.createElement('span');
+    lb.className='lb '+(it.x>62?'l':'r');
+    lb.textContent=it.name;
+    dot.appendChild(lb);
+    attachDrag(dot,it);
+    plot.appendChild(dot);
+  });
+  renderEditor();
+}
+
+function attachDrag(dot,it){
+  let moved=false,sx=0,sy=0;
+  dot.addEventListener('pointerdown',e=>{
+    e.preventDefault();
+    dot.setPointerCapture(e.pointerId);
+    dot.style.cursor='grabbing';
+    moved=false;sx=e.clientX;sy=e.clientY;
+  });
+  dot.addEventListener('pointermove',e=>{
+    if(!dot.hasPointerCapture(e.pointerId))return;
+    if(Math.abs(e.clientX-sx)>4||Math.abs(e.clientY-sy)>4)moved=true;
+    const r=plot.getBoundingClientRect();
+    it.x=clamp((e.clientX-r.left)/r.width*100);
+    it.y=clamp((e.clientY-r.top)/r.height*100);
+    dot.style.left=it.x+'%';dot.style.top=it.y+'%';
+    const lb=dot.querySelector('.lb');
+    lb.className='lb '+(it.x>62?'l':'r');
+  });
+  dot.addEventListener('pointerup',e=>{
+    dot.style.cursor='grab';
+    try{dot.releasePointerCapture(e.pointerId);}catch(_){}
+    if(moved){saveState();}
+    else{selectedId=(selectedId===it.id?null:it.id);render();}
+  });
+}
+
+function renderEditor(){
+  const it=state.items.find(i=>i.id===selectedId);
+  if(!it){editor.classList.remove('show');return;}
+  editor.classList.add('show');
+  document.getElementById('editName').value=it.name;
+  buildCats('editCats',it.cat,cat=>{it.cat=cat;saveState();render();});
+}
+
+function buildCats(hostId,active,onPick){
+  const host=document.getElementById(hostId);
+  host.innerHTML='';
+  Object.keys(CATS).forEach(k=>{
+    const c=CATS[k];
+    const b=document.createElement('div');
+    b.className='cat'+(k===active?' on':'');
+    b.style.color=k===active?c.color:'';
+    b.innerHTML='<span class="sw" style="background:'+c.color+'"></span>'+c.label;
+    b.onclick=()=>onPick(k);
+    host.appendChild(b);
+  });
+}
+
+function renderLegend(){
+  const host=document.getElementById('legend');
+  host.innerHTML='';
+  Object.values(CATS).forEach(c=>{
+    const el=document.createElement('div');
+    el.className='it';
+    el.innerHTML='<span class="sw" style="background:'+c.color+'"></span>'+c.label;
+    host.appendChild(el);
+  });
+}
+
+document.getElementById('editName').addEventListener('input',e=>{
+  const it=state.items.find(i=>i.id===selectedId);
+  if(it){it.name=e.target.value;
+    const dot=[...plot.querySelectorAll('.dot')].find(d=>d.classList.contains('sel'));
+    if(dot)dot.querySelector('.lb').textContent=it.name;
+    saveState();}
+});
+document.getElementById('delBtn').addEventListener('click',()=>{
+  state.items=state.items.filter(i=>i.id!==selectedId);
+  selectedId=null;saveState();render();
+});
+document.getElementById('addBtn').addEventListener('click',()=>{
+  const inp=document.getElementById('newName');
+  const name=inp.value.trim();
+  if(!name)return;
+  const it={id:state.nextId++,name:name,x:50,y:50,cat:newCat};
+  state.items.push(it);
+  selectedId=it.id;
+  inp.value='';
+  saveState();render();
+});
+document.getElementById('newName').addEventListener('keydown',e=>{
+  if(e.key==='Enter')document.getElementById('addBtn').click();
+});
+const resetRow=document.getElementById('resetRow');
+const resetConfirm=document.getElementById('resetConfirm');
+document.getElementById('resetBtn').addEventListener('click',()=>{
+  resetRow.style.display='none';resetConfirm.style.display='flex';
+});
+document.getElementById('resetNo').addEventListener('click',()=>{
+  resetConfirm.style.display='none';resetRow.style.display='flex';
+});
+document.getElementById('resetYes').addEventListener('click',()=>{
+  state={items:JSON.parse(JSON.stringify(DEFAULTS)),nextId:12};
+  selectedId=null;saveState();render();
+  resetConfirm.style.display='none';resetRow.style.display='flex';
+});
+
+function renderNewCats(){
+  buildCats('newCats',newCat,k=>{newCat=k;renderNewCats();});
+}
+
+(async function init(){
+  const saved=await loadState();
+  state=saved&&saved.items?saved:{items:JSON.parse(JSON.stringify(DEFAULTS)),nextId:12};
+  renderLegend();
+  renderNewCats();
+  render();
+})();
+</script>
+</body>
+</html>

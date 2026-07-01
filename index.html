@@ -10,6 +10,7 @@
     --border:#e7e5dd; --axis:#b4b2a9;
     --work:#888780; --judge:#BA7517; --carve:#1D9E75;
     --teal-zone:rgba(29,158,117,0.09); --amber-zone:rgba(186,117,23,0.08);
+    --lb-size:11.5px;
   }
   *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
   html,body{background:var(--bg);color:var(--text);
@@ -38,7 +39,7 @@
     cursor:grab;touch-action:none;border:2px solid var(--card);box-shadow:0 0 0 1px rgba(0,0,0,.08)}
   .dot.sel{box-shadow:0 0 0 2px var(--card),0 0 0 4px currentColor}
   .dot .lb{position:absolute;top:50%;transform:translateY(-50%);white-space:nowrap;
-    font-size:11.5px;color:var(--text);font-weight:400}
+    font-size:var(--lb-size);color:var(--text);font-weight:400}
   .dot .lb.r{left:20px}
   .dot .lb.l{right:20px;text-align:right}
   .dot.sel .lb{font-weight:600}
@@ -65,6 +66,10 @@
   .legend .sw{width:12px;height:12px;border-radius:50%}
   .muted{font-size:11.5px;color:var(--hint);margin-top:10px;line-height:1.5}
   .danger{color:#a32d2d;border-color:#e7c6c6}
+  .ctl{display:flex;gap:10px;align-items:center;margin-top:14px;flex-wrap:wrap}
+  .ctl label{font-size:12.5px;color:var(--sub);white-space:nowrap}
+  input[type=range]{flex:1;min-width:120px;accent-color:#3b6d56;height:22px}
+  .ctl .val{font-size:12px;color:var(--hint);min-width:34px;text-align:right}
 </style>
 </head>
 <body>
@@ -113,6 +118,15 @@
       <button class="btn danger" id="resetYes">戻す</button>
       <button class="btn" id="resetNo">やめる</button>
     </div>
+
+    <div class="ctl">
+      <label>文字の大きさ</label>
+      <input type="range" id="fontRange" min="9" max="20" step="0.5">
+      <span class="val" id="fontVal"></span>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <button class="btn btn-primary" id="saveImgBtn">画像で保存（PNG）</button>
+    </div>
   </div>
 </div>
 
@@ -137,7 +151,9 @@ const DEFAULTS=[
   {id:11,name:'見積もり(B)',x:81,y:71,cat:'judge'}
 ];
 
-let state={items:[],nextId:12};
+const DEF_LB=11.5;
+const FF='-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic",sans-serif';
+let state={items:[],nextId:12,labelSize:DEF_LB};
 let selectedId=null;
 let newCat='work';
 
@@ -265,7 +281,8 @@ document.getElementById('resetNo').addEventListener('click',()=>{
   resetConfirm.style.display='none';resetRow.style.display='flex';
 });
 document.getElementById('resetYes').addEventListener('click',()=>{
-  state={items:JSON.parse(JSON.stringify(DEFAULTS)),nextId:12};
+  const lb=state.labelSize||DEF_LB;
+  state={items:JSON.parse(JSON.stringify(DEFAULTS)),nextId:12,labelSize:lb};
   selectedId=null;saveState();render();
   resetConfirm.style.display='none';resetRow.style.display='flex';
 });
@@ -274,9 +291,99 @@ function renderNewCats(){
   buildCats('newCats',newCat,k=>{newCat=k;renderNewCats();});
 }
 
+const fontRange=document.getElementById('fontRange');
+const fontVal=document.getElementById('fontVal');
+function applyLabelSize(){
+  const s=state.labelSize||DEF_LB;
+  document.documentElement.style.setProperty('--lb-size',s+'px');
+  fontRange.value=s;
+  fontVal.textContent=s+'px';
+}
+fontRange.addEventListener('input',e=>{
+  state.labelSize=parseFloat(e.target.value);
+  applyLabelSize();saveState();
+});
+
+function roundRect(ctx,x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);
+  ctx.arcTo(x+w,y,x+w,y+h,r);
+  ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r);
+  ctx.arcTo(x,y,x+w,y,r);
+  ctx.closePath();
+}
+function exportImage(){
+  const S=2, P=24, size=600;
+  const lb=state.labelSize||DEF_LB;
+  const meas=document.createElement('canvas').getContext('2d');
+  meas.font='400 '+lb+'px '+FF;
+  let needL=0,needR=0;
+  state.items.forEach(it=>{
+    const cx=it.x/100*size, w=meas.measureText(it.name).width;
+    if(it.x>62){const e=cx-13-w; if(e<0)needL=Math.max(needL,-e);}
+    else{const e=cx+13+w; if(e>size)needR=Math.max(needR,e-size);}
+  });
+  const left=P+needL, right=P+needR;
+  const W=left+size+right, H=P+size+P, x0=left, y0=P;
+  const cv=document.createElement('canvas');
+  cv.width=W*S; cv.height=H*S;
+  const ctx=cv.getContext('2d');
+  ctx.scale(S,S);
+  ctx.fillStyle='#faf9f6'; ctx.fillRect(0,0,W,H);
+  roundRect(ctx,x0,y0,size,size,12); ctx.fillStyle='#ffffff'; ctx.fill();
+  ctx.save(); roundRect(ctx,x0,y0,size,size,12); ctx.clip();
+  ctx.fillStyle='rgba(29,158,117,0.09)'; ctx.fillRect(x0,y0,size/2,size/2);
+  ctx.fillStyle='rgba(186,117,23,0.08)'; ctx.fillRect(x0+size/2,y0+size/2,size/2,size/2);
+  ctx.restore();
+  roundRect(ctx,x0,y0,size,size,12); ctx.strokeStyle='#e7e5dd'; ctx.lineWidth=1; ctx.stroke();
+  ctx.strokeStyle='#b4b2a9'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(x0+size/2,y0+6); ctx.lineTo(x0+size/2,y0+size-6); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x0+6,y0+size/2); ctx.lineTo(x0+size-6,y0+size/2); ctx.stroke();
+  ctx.fillStyle='#b4b2a9';
+  const vt=x0+size/2, tp=y0+1;
+  ctx.beginPath(); ctx.moveTo(vt,tp); ctx.lineTo(vt-4,tp+6); ctx.lineTo(vt+4,tp+6); ctx.closePath(); ctx.fill();
+  const hr=x0+size-1, hm=y0+size/2;
+  ctx.beginPath(); ctx.moveTo(hr,hm); ctx.lineTo(hr-6,hm-4); ctx.lineTo(hr-6,hm+4); ctx.closePath(); ctx.fill();
+  ctx.font='500 11.5px '+FF;
+  ctx.fillStyle='#6b6a66'; ctx.textAlign='center'; ctx.textBaseline='top';
+  ctx.fillText('拘束時間（大）', x0+size/2, y0+8);
+  ctx.fillStyle='#9c9a92'; ctx.textBaseline='bottom';
+  ctx.fillText('（小）', x0+size/2, y0+size-8);
+  ctx.textBaseline='middle';
+  ctx.fillStyle='#6b6a66'; ctx.textAlign='right';
+  ctx.fillText('属人性（高）', x0+size-10, y0+size/2-14);
+  ctx.fillStyle='#9c9a92'; ctx.textAlign='left';
+  ctx.fillText('（低）', x0+10, y0+size/2-14);
+  ctx.textBaseline='top'; ctx.textAlign='left'; ctx.fillStyle='#0f6e56';
+  ctx.font='500 11.5px '+FF; ctx.fillText('切り出し候補', x0+12, y0+10);
+  ctx.font='400 11px '+FF; ctx.fillText('拘束 大 × 属人性 低', x0+12, y0+27);
+  state.items.forEach(it=>{
+    const c=(CATS[it.cat]||CATS.work).color;
+    const cx=x0+it.x/100*size, cy=y0+it.y/100*size;
+    ctx.beginPath(); ctx.arc(cx,cy,8.5,0,Math.PI*2); ctx.strokeStyle='rgba(0,0,0,.08)'; ctx.lineWidth=1; ctx.stroke();
+    ctx.beginPath(); ctx.arc(cx,cy,7,0,Math.PI*2); ctx.fillStyle=c; ctx.fill();
+    ctx.lineWidth=2; ctx.strokeStyle='#ffffff'; ctx.stroke();
+    ctx.font='400 '+lb+'px '+FF; ctx.fillStyle='#2c2c2a'; ctx.textBaseline='middle';
+    if(it.x>62){ctx.textAlign='right'; ctx.fillText(it.name, cx-13, cy);}
+    else{ctx.textAlign='left'; ctx.fillText(it.name, cx+13, cy);}
+  });
+  const done=url=>{
+    const a=document.createElement('a');
+    a.href=url; a.download='業務棚卸しマトリックス.png';
+    document.body.appendChild(a); a.click(); a.remove();
+  };
+  if(cv.toBlob){
+    cv.toBlob(b=>{const u=URL.createObjectURL(b);done(u);setTimeout(()=>URL.revokeObjectURL(u),1500);},'image/png');
+  }else{done(cv.toDataURL('image/png'));}
+}
+document.getElementById('saveImgBtn').addEventListener('click',exportImage);
+
 (async function init(){
   const saved=await loadState();
-  state=saved&&saved.items?saved:{items:JSON.parse(JSON.stringify(DEFAULTS)),nextId:12};
+  state=saved&&saved.items?saved:{items:JSON.parse(JSON.stringify(DEFAULTS)),nextId:12,labelSize:DEF_LB};
+  if(!state.labelSize)state.labelSize=DEF_LB;
+  applyLabelSize();
   renderLegend();
   renderNewCats();
   render();

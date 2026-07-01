@@ -15,12 +15,26 @@
   *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
   html,body{background:var(--bg);color:var(--text);
     font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic",sans-serif}
-  .app{max-width:560px;margin:0 auto;padding:16px 16px 40px}
+  .app{max-width:min(94vw,760px);margin:0 auto;padding:16px 16px 40px}
   h1{font-size:18px;font-weight:600;margin-bottom:4px}
   .desc{font-size:12.5px;color:var(--sub);line-height:1.6;margin-bottom:14px}
   .plot-wrap{padding:0 6px}
-  .plot{position:relative;width:100%;aspect-ratio:1/1;background:var(--card);
+  /* 幅と画面の高さの小さい方いっぱいに。正方形を保ちつつ大画面では大きく表示 */
+  .plot{position:relative;width:min(100%,76vh);width:min(100%,76dvh);aspect-ratio:1/1;
+    margin:0 auto;background:var(--card);
     border:1px solid var(--border);border-radius:12px;touch-action:none;overflow:visible}
+  /* 全画面表示：マトリクスだけを画面いっぱいに */
+  #focusExit{display:none}
+  body.focus{overflow:hidden}
+  body.focus h1,body.focus .desc,body.focus .panel{display:none}
+  body.focus .app{max-width:none;margin:0;padding:0}
+  body.focus .plot-wrap{padding:0}
+  body.focus .plot{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);
+    width:min(100vw,100vh);height:min(100vw,100vh);
+    width:min(100dvw,100dvh);height:min(100dvw,100dvh);
+    border-radius:0;z-index:50}
+  body.focus #focusExit{display:block;position:fixed;top:12px;right:12px;z-index:60;
+    background:rgba(255,255,255,.9);box-shadow:0 1px 4px rgba(0,0,0,.12)}
   .q-tl{position:absolute;left:0;top:0;width:50%;height:50%;background:var(--teal-zone);border-radius:12px 0 0 0}
   .q-br{position:absolute;right:0;bottom:0;width:50%;height:50%;background:var(--amber-zone);border-radius:0 0 12px 0}
   .axis-v{position:absolute;left:50%;top:6px;bottom:6px;width:1px;background:var(--axis);transform:translateX(-.5px)}
@@ -126,9 +140,11 @@
     </div>
     <div class="row" style="margin-top:10px">
       <button class="btn btn-primary" id="saveImgBtn">画像で保存（PNG）</button>
+      <button class="btn" id="focusBtn">全画面で表示</button>
     </div>
   </div>
 </div>
+<button class="btn" id="focusExit">✕ 閉じる</button>
 
 <script>
 const KEY='kojocho-matrix-state-v1';
@@ -388,6 +404,11 @@ function exportImage(){
   }else{done(cv.toDataURL('image/png'));}
 }
 document.getElementById('saveImgBtn').addEventListener('click',exportImage);
+
+function setFocus(on){document.body.classList.toggle('focus',on);}
+document.getElementById('focusBtn').addEventListener('click',()=>setFocus(true));
+document.getElementById('focusExit').addEventListener('click',()=>setFocus(false));
+document.addEventListener('keydown',e=>{if(e.key==='Escape')setFocus(false);});
 
 (async function init(){
   const saved=await loadState();
